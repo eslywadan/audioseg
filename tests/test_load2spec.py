@@ -26,6 +26,9 @@ assert sat.data.val_cbatch_specs_voice is not None
 
 sat.start_mdl()
 
+
+
+
 sat.start_train()
 
 

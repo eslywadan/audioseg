@@ -94,7 +94,7 @@ class SegAudioPrep():
         assert len(rs) <= self.batchsize
         return rs    
     
-    def acq_batch_min_batch_freq(self, sample_frames=8):
+    def acq_batch_min_batch_freq(self, sample_frames, n_fft, hop_length):
          """
          (1) on self.update_train_batch_wavs2specs() is executed, 
          self.train_cbatch_specs_mono
@@ -107,7 +107,7 @@ class SegAudioPrep():
         (3) generate the x & y 
          """
          ## (1) update a new batch 
-         self.update_train_batch_wavs2specs()
+         self.update_train_batch_wavs2specs(n_fft, hop_length)
 
          train_mbatch_specs_sframes_mono = []
          train_mbatch_specs_sframes_music = []
@@ -426,54 +426,59 @@ class SegAudioTrain():
             # start from the lattest broken point
             if i < self.startepo:
                 continue
-            wavs_mono_train_cut = list()
-            wavs_music_train_cut = list()
-            wavs_voice_train_cut = list()
+            #wavs_mono_train_cut = list()
+            #wavs_music_train_cut = list()
+            #wavs_voice_train_cut = list()
+
+            #self.gen_xy_train_data(i, wavs_mono_train_cut, wavs_music_train_cut, wavs_voice_train_cut)
+            #送入神经网络，开始训练
+
+            self.data.acq_batch_min_batch_freq(self.sample_frames, self.n_fft, self.hop_length)
+            train_loss = self.mdl.train(x_mixed_src = self.data.x_mixed_src, y_music_src = self.data.y_music_src, y_voice_src = self.data.y_voice_src,
+                                    learning_rate = self.learning_rate, dropout_rate = self.dropout_rate)
+ 
+        # 每10步输出一次训练结果的损失值
+            if i % 10 == 0:
+                print('Step: %d Train Loss: %f' %(i, train_loss))
+        # 每200步输出一次测试结果
+            if i % 200 == 0:
+                print('==============================================')
+                data_mono_batch, data_music_batch, data_voice_batch = get_next_batch(
+                    stfts_mono = self.data.val_cbatch_specs_mono, stfts_music = self.data.val_cbatch_specs_music,
+                    stfts_voice = self.data.val_cbatch_specs_voice, batch_size = self.batch_size, sample_frames = self.sample_frames)
+                x_mixed_src, _ = separate_magnitude_phase(data = data_mono_batch)
+                y_music_src, _ = separate_magnitude_phase(data = data_music_batch)
+                y_voice_src, _ = separate_magnitude_phase(data = data_voice_batch)
+                y_music_src_pred, y_voice_src_pred, validate_loss = self.mdl.validate(x_mixed_src = x_mixed_src,
+                        y_music_src = y_music_src, y_voice_src = y_voice_src, dropout_rate = self.dropout_rate)
+                print('Step: %d Validation Loss: %f' %(i, validate_loss))
+                print('==============================================')
+        # 每200步保存一次模型
+            if i % 200 == 0:
+                self.mdl.save(directory = self.model_dir, filename = self.model_filename, global_step=i)
 
 
-            for seed in range(self.batch_size):
-                
-                index = np.random.randint(0, len(self.data.train_wavs_mono))
-                wavs_mono_train_cut.append(self.data.train_wavs_mono[index])
-                wavs_music_train_cut.append(self.data.train_wavs_music[index])
-                wavs_voice_train_cut.append(self.data.train_wavs_voice[index])
+    def gen_xy_train_data(self, i, wavs_mono_train_cut, wavs_music_train_cut, wavs_voice_train_cut):
+        print(f"gen x,y train data for iteration {i}")
+        for seed in range(self.batch_size):
+            index = np.random.randint(0, len(self.data.train_wavs_mono))
+            wavs_mono_train_cut.append(self.data.train_wavs_mono[index])
+            wavs_music_train_cut.append(self.data.train_wavs_music[index])
+            wavs_voice_train_cut.append(self.data.train_wavs_voice[index])
             
             #短时傅里叶变换，将选取的音频数据转到频域
-            print(f"start iteration {i}")
-            stfts_mono_train_cut, stfts_music_train_cut, stfts_voice_train_cut = wavs2specs(
+        
+        stfts_mono_train_cut, stfts_music_train_cut, stfts_voice_train_cut = wavs2specs(
             _wavs_mono = wavs_mono_train_cut, _wavs_music = wavs_music_train_cut, _wavs_voice = wavs_voice_train_cut,
             n_fft = self.n_fft, hop_length = self.hop_length)
 
-            data_mono_batch, data_music_batch, data_voice_batch = get_next_batch(
+        data_mono_batch, data_music_batch, data_voice_batch = get_next_batch(
         stfts_mono = stfts_mono_train_cut, stfts_music = stfts_music_train_cut, stfts_voice = stfts_voice_train_cut,
         batch_size = self.batch_size, sample_frames = self.sample_frames)
-        #获取频率值
-        x_mixed_src, _ = separate_magnitude_phase(data = data_mono_batch)
-        y_music_src, _ = separate_magnitude_phase(data = data_music_batch)
-        y_voice_src, _ = separate_magnitude_phase(data = data_voice_batch)
-        #送入神经网络，开始训练
-        train_loss = self.mdl.train(x_mixed_src = x_mixed_src, y_music_src = y_music_src, y_voice_src = y_voice_src,
-                                 learning_rate = self.learning_rate, dropout_rate = self.dropout_rate)
- 
-        # 每10步输出一次训练结果的损失值
-        if i % 2 == 0:
-            print('Step: %d Train Loss: %f' %(i, train_loss))
-    # 每200步输出一次测试结果
-        if i % 100 == 0:
-            print('==============================================')
-            data_mono_batch, data_music_batch, data_voice_batch = get_next_batch(
-                stfts_mono = self.data.val_cbatch_specs_mono, stfts_music = self.data.val_cbatch_specs_music,
-                stfts_voice = self.data.val_cbatch_specs_voice, batch_size = self.batch_size, sample_frames = self.sample_frames)
-            x_mixed_src, _ = separate_magnitude_phase(data = data_mono_batch)
-            y_music_src, _ = separate_magnitude_phase(data = data_music_batch)
-            y_voice_src, _ = separate_magnitude_phase(data = data_voice_batch)
-            y_music_src_pred, y_voice_src_pred, validate_loss = self.mdl.validate(x_mixed_src = x_mixed_src,
-                    y_music_src = y_music_src, y_voice_src = y_voice_src, dropout_rate = self.dropout_rate)
-            print('Step: %d Validation Loss: %f' %(i, validate_loss))
-            print('==============================================')
-    # 每200步保存一次模型
-        if i % 200 == 0:
-            self.mdl.save(directory = self.model_dir, filename = self.model_filename, global_step=i)
+            #获取频率值
+        self.x_mixed_src, _ = separate_magnitude_phase(data = data_mono_batch)
+        self.y_music_src, _ = separate_magnitude_phase(data = data_music_batch)
+        self.y_voice_src, _ = separate_magnitude_phase(data = data_voice_batch)
 
 
 
