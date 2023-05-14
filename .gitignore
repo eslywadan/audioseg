@@ -1,0 +1,6 @@
+book/*
+__pycache__
+.DS_Store
+venv/*
+model/*
+dataset/*

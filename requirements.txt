@@ -1,0 +1,13 @@
+numpy
+pandas
+tqdm
+ipywidgets
+ffmpeg-python
+datasets>=2.6.1
+librosa
+scikit-learn
+evaluate
+jiwer
+gradio
+notebook
+tensorflow
