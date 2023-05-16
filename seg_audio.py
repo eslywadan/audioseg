@@ -22,9 +22,13 @@ def parse_arguments(**kwargs):
     parser.add_argument("--iterations", type=int, help="訓練迭代次數", default=30000)
     parser.add_argument("--dropout_rate", type=float, help="dropout rate", default=0.95)
     parser.add_argument("--n_fft", type=int, help="短時傅立葉變換的 fft 點數，預設為 windows 長度", default=1024)
+    parser.add_argument("--hop_length_rate", type=int, help="取樣的重疊比例",default=0.25)
+    parser.add_argument("--test_temp_dir", type=str, help="測試過程暫存資料路徑", default='./tests/temp')
     args = parser.parse_args()
     return args
 
+
+args = parse_arguments()
 
 class SegAudioPrep():
 
@@ -149,16 +153,24 @@ def load_waves(_file_list, _sr, _mono=False):
     _wavs_music = []
     _wavs_voice = []
     for filename in _file_list:
-        wav, _ = librosa.load(filename, sr= _sr, mono = _mono)
-        assert(wav.ndim==2 and wav.shape[0]==2)
-        wav_mono= librosa.to_mono(wav)*2
-        wav_music = wav[0, :]
-        wav_voice = wav[1, :]
+        wav_mono, wav_music, wav_voice = chans2wavintommv(filename, _sr, _mono)
         _wavs_mono.append(wav_mono)
         _wavs_music.append(wav_music)
         _wavs_voice.append(wav_voice)
     
     return _wavs_mono, _wavs_music, _wavs_voice
+
+# Given wav file in 2 channels trans into mixed(mono) and music and voice 
+def chans2wavintommv(filename, _sr=args.dataset_sr, _mono=False):
+    wav, _ = librosa.load(filename, sr= _sr, mono = _mono)
+    assert(wav.ndim==2 and wav.shape[0]==2)
+    wav_mono= librosa.to_mono(wav)*2
+    wav_music = wav[0, :]
+    wav_voice = wav[1, :]
+    return wav_mono,wav_music,wav_voice
+
+def wavs2inputxy():
+    pass
 
 
 def wavs2specs(_wavs_mono, _wavs_music, _wavs_voice, n_fft=1024, hop_length=None):
