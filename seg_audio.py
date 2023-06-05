@@ -395,6 +395,9 @@ class SegAudioTrain():
         self.model_filename = self.args.model_filename
         self.data = SegAudioPrep()
         self.mdl = SegAudioModel(self.args.n_fft, num_hidden_units = self.num_hidden_units)
+        self.mdl.optimizer_init()
+        self.mdl.loss_init()
+        # self.mdl.network_init()
 
     def main_de(self):
         #1. 导入需要训练的数据集文件路径，存到列表中即可
@@ -498,4 +501,4 @@ class SegAudioTrain():
     def main(self):
         self.main_de()
         self.start_mdl()
-        self.start_train()
+        self.start_train()d

@@ -28,6 +28,16 @@ def get_wav1to3thenspectrum():
     
     return specs_mono, specs_music, specs_voice
 
+
+# test case to assert the length of self.train_cbatch_specs_mono is the batch size (=64)
+def test_batch_size():
+
+    pass
+
+# test case to assert the length of self.train_mbatch_specs_sframes_mono is the sampling frames size 
+def test_min_batch():
+    pass
+
 def test_spectrumtoxy():
-    specs_mono, specs_music, specs_voice = get_wav1to3thenspectrum()ㄆ
+    specs_mono, specs_music, specs_voice = get_wav1to3thenspectrum()
 
